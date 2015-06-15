@@ -3,20 +3,18 @@ package com.zabrzeski.kamil.concurrentsystem;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
-
 import android.app.LoaderManager.LoaderCallbacks;
-import android.content.ContentResolver;
 import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
-
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -30,6 +28,12 @@ import android.widget.TextView;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.SignInButton;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -146,7 +150,7 @@ public class LoginActivity extends PlusBaseActivity implements LoaderCallbacks<C
 
 
         // Check for a valid password, if the user entered one.
-        if (!TextUtils.isEmpty(password) && !isPasswordValid(password)) {
+        if (TextUtils.isEmpty(password)) {
             mPasswordView.setError(getString(R.string.error_invalid_password));
             focusView = mPasswordView;
             cancel = true;
@@ -312,6 +316,16 @@ public class LoginActivity extends PlusBaseActivity implements LoaderCallbacks<C
 
     }
 
+    private void addEmailsToAutoComplete(List<String> emailAddressCollection) {
+        //Create adapter to tell the AutoCompleteTextView what to show in its dropdown list.
+        ArrayAdapter<String> adapter =
+                new ArrayAdapter<String>(LoginActivity.this,
+                        android.R.layout.simple_dropdown_item_1line, emailAddressCollection);
+
+        mEmailView.setAdapter(adapter);
+    }
+
+
     private interface ProfileQuery {
         String[] PROJECTION = {
                 ContactsContract.CommonDataKinds.Email.ADDRESS,
@@ -322,24 +336,21 @@ public class LoginActivity extends PlusBaseActivity implements LoaderCallbacks<C
         int IS_PRIMARY = 1;
     }
 
-
-    private void addEmailsToAutoComplete(List<String> emailAddressCollection) {
-        //Create adapter to tell the AutoCompleteTextView what to show in its dropdown list.
-        ArrayAdapter<String> adapter =
-                new ArrayAdapter<String>(LoginActivity.this,
-                        android.R.layout.simple_dropdown_item_1line, emailAddressCollection);
-
-        mEmailView.setAdapter(adapter);
-    }
-
     /**
      * Represents an asynchronous login/registration task used to authenticate
      * the user.
      */
     public class UserLoginTask extends AsyncTask<Void, Void, Boolean> {
 
+        private static final String TAG_SUCCESS = "success";
+        private static final String TAG_USER = "user";
+        private static final String url_user = "http://zuku7.idl.pl/android/get_user.php";
         private final String mEmail;
         private final String mPassword;
+        int id;
+        int groupid;
+        // JSON parser class
+        JSONParser jsonParser = new JSONParser();
         private String mName;
 
         UserLoginTask(String email, String password) {
@@ -350,28 +361,64 @@ public class LoginActivity extends PlusBaseActivity implements LoaderCallbacks<C
         @Override
         protected Boolean doInBackground(Void... params) {
             // TODO: attempt authentication against a network service.
+//
+//            try {
+//                // Simulate network access.
+//                Thread.sleep(2000);
+//            } catch (InterruptedException e) {
+//                return false;
+//            }
+//
+//            for (String credential : DUMMY_CREDENTIALS) {
+//                String[] pieces = credential.split(":");
+//                if (pieces[0].equals(mEmail)) {
+//                    // Account exists, return true if the password matches.
+//                    mName="Kamil";
+//                    return pieces[1].equals(mPassword);
+//                }else
+//                {
+//
+//                }
+//            }
 
+
+            int success;
             try {
-                // Simulate network access.
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                return false;
-            }
+                // Building Parameters
+                List<NameValuePair> paramsU = new ArrayList<NameValuePair>();
+                paramsU.add(new BasicNameValuePair("email", mEmail));
 
-            for (String credential : DUMMY_CREDENTIALS) {
-                String[] pieces = credential.split(":");
-                if (pieces[0].equals(mEmail)) {
-                    // Account exists, return true if the password matches.
-                    mName="Kamil";
-                    return pieces[1].equals(mPassword);
-                }else
-                {
+                // getting product details by making HTTP request
+                // Note that product details url will use GET request
+                JSONObject json = jsonParser.makeHttpRequest(
+                        url_user, "GET", paramsU);
+
+                // check your log for json response
+                Log.d("Single Product Details", json.toString());
+
+                // json success tag
+                success = json.getInt(TAG_SUCCESS);
+                if (success == 1) {
+                    // successfully received product details
+                    JSONArray productObj = json
+                            .getJSONArray(TAG_USER); // JSON Array
+
+                    // get first product object from JSON Array
+                    JSONObject user = productObj.getJSONObject(0);
+                    mName = user.getString("login");
+                    id = user.getInt("id");
+                    groupid = user.getInt("group_id");
+
+                    return true;
+                } else {
                     return false;
                 }
+            } catch (JSONException e) {
+                e.printStackTrace();
             }
 
-            // TODO: register the new account here.
-            return true;
+            return false;
+
         }
 
         @Override
@@ -382,10 +429,15 @@ public class LoginActivity extends PlusBaseActivity implements LoaderCallbacks<C
             if (success) {
                 finish();
                 Intent intent = new Intent(getBaseContext(), ProfileActivity.class);
-                intent.putExtra("name",mName );
+                intent.putExtra("name", mName);
+
+                intent.putExtra("id", id);
+                intent.putExtra("group_id", groupid);
                 startActivity(intent);
 
             } else {
+                mEmailView.setError(getString(R.string.error_invalid_email));
+                mEmailView.requestFocus();
                 mPasswordView.setError(getString(R.string.error_incorrect_password));
                 mPasswordView.requestFocus();
             }

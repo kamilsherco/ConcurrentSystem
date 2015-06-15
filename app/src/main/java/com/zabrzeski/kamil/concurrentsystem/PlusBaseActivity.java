@@ -1,10 +1,9 @@
 package com.zabrzeski.kamil.concurrentsystem;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.os.Bundle;
-
-import android.app.Activity;
 import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -24,13 +23,10 @@ public abstract class PlusBaseActivity extends Activity
 
     // A magic number we will use to know that our sign-in error resolution activity has completed
     private static final int OUR_REQUEST_CODE = 49404;
-
-    // A flag to stop multiple dialogues appearing for the user
-    private boolean mAutoResolveOnFail;
-
     // A flag to track when a connection is already in progress
     public boolean mPlusClientIsConnecting = false;
-
+    // A flag to stop multiple dialogues appearing for the user
+    private boolean mAutoResolveOnFail;
     // This is the helper object that connects to Google Play Services.
     private PlusClient mPlusClient;
 
@@ -75,8 +71,8 @@ public abstract class PlusBaseActivity extends Activity
         // Initialize the PlusClient connection.
         // Scopes indicate the information about the user your application will be able to access.
         mPlusClient =
-        new PlusClient.Builder(this, this, this).setScopes(Scopes.PLUS_LOGIN,
-                Scopes.PLUS_ME).build();
+                new PlusClient.Builder(this, this, this).setScopes(Scopes.PLUS_LOGIN,
+                        Scopes.PLUS_ME).build();
     }
 
     /**
